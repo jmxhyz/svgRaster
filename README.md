@@ -39,7 +39,7 @@ POWER_MAX = 0.17
 
 ## Settings
 
-There are several settings to play with here.  The Power Min and Power Max settings need to be changed to match your desired effect and machine.  Setting a Power Min below your fire threshold will cause the script to skip the lighter colors which is sometimes desired.
+There are several settings to play with here.  If you use something other than Inkscape then you might need to change SVG_DPI.  The Power Min and Power Max settings need to be changed to match your desired effect and machine.  Setting a Power Min below your fire threshold will cause the script to skip the lighter colors which is sometimes desired.
 
 
 ## Image Processing
