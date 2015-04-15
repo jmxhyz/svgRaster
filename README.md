@@ -48,9 +48,9 @@ There is a lot of information covering this topic on the internet already but I 
 
 *Using GIMP*
 1. Colors > Levels > Gamma 
-  * Change the default 1.00 to 3.5
+  1. Change the default 1.00 to 3.5
 2. Filters > Enhance > Unsharp Mask
-  * Radius: 10
-  * Amount: 5.00
-  * Threshold 6
+  1. Radius: 10
+  2. Amount: 5.00
+  3. Threshold 6
 
