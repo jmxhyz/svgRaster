@@ -47,6 +47,7 @@ There are several settings to play with here.  The Power Min and Power Max setti
 There is a lot of information covering this topic on the internet already but I thought I'd give a quick example that is generally a good starting point.
 
 *Using GIMP*
+
 1. Colors > Levels > Gamma 
   1. Change the default 1.00 to 3.5
 2. Filters > Enhance > Unsharp Mask
