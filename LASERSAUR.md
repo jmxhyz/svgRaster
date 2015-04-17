@@ -1,10 +1,14 @@
-The current version of the LasaurApp doesn't have a good way to send your own custom gcode.  The following html/javascript can be added to add a gcode tab that will allow you to paste gcode and send it.  Due to to some errors when sending too much gcode at once the javascript breaks it up into 5000 line chunks and sends it one chunk at a time.
+The next version of LasaurApp will have an api but the current version doesn't have a good way to send your own custom gcode.  The following html/javascript can be added to add a gcode tab that will allow you to paste gcode and send it.  Due to to some errors when sending too much gcode at once the javascript breaks it up into 5000 line chunks and sends it one chunk at a time.
 
-You can insert the following code in frontend/app.html at line 330 after the following line:
+You can insert the code in frontend/app.html at line 330 after the following line:
 
-</div> <!-- end of log tab -->
+```
+ </div><!-- end of log tab -->
+```
 
-'''
+The code to insert:
+
+```
                             <!--  START   CUSTOM GCODE TAB -->
                             <div id='tab_gcode' class='tab-pane'>
                                 <div id='gcode_content'>
@@ -57,4 +61,4 @@ You can insert the following code in frontend/app.html at line 330 after the fol
                                 });
                             </script>
                             <!-- END      CUSTOM GCODE TAB -->
-'''
+```
