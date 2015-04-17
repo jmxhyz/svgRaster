@@ -98,13 +98,9 @@ def imageToGcode ( img, x, y, width, height, smin, smax, pixel_size ):
     width = int (width / pixel_size)
     height = int ( height / pixel_size )
 
-    enh = ImageEnhance.Contrast(img)
-    enh.enhance(0.5)
-
     img = img.resize((width, height), Image.ANTIALIAS)
     img = img.convert("L")
     img = img.convert('P',dither=None, palette=Image.ADAPTIVE,colors=NUMCOLORS)
-    img.save("g.png")
     pixels = list(img.getdata())
     pixels = [pixels[i * width:(i + 1) * width] for i in xrange(height)]
 
