@@ -2,9 +2,11 @@ The current version of the LasaurApp doesn't have a good way to send your own cu
 
 You can insert the following code in frontend/app.html at line 330 after the following line:
 
-</div> <!-- end of log tab -->
+```
+ </div><!-- end of log tab -->
+```
 
-'''
+```
                             <!--  START   CUSTOM GCODE TAB -->
                             <div id='tab_gcode' class='tab-pane'>
                                 <div id='gcode_content'>
@@ -57,4 +59,4 @@ You can insert the following code in frontend/app.html at line 330 after the fol
                                 });
                             </script>
                             <!-- END      CUSTOM GCODE TAB -->
-'''
+```
