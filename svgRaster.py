@@ -20,7 +20,7 @@ GCODE_HEADER = """
 G90
 M80
 G0F8000
-G1F8000
+G1F%F
 """
 
 GCODE_FOOTER = """
@@ -38,22 +38,23 @@ XHOME = 1   # 1 = LEFT, -1 = RIGHT
 
 SVG_DPI = 90            # What DPI is your SVG file?  This is important for positioning.
 IMAGE_DPI = 90          # Convert image to this dpi
-POWER_MIN = -50         # POWER FOR WHITE
-POWER_MAX = 50          # POWER FOR BLACK
+POWER_MIN = 0           # POWER FOR WHITE
+POWER_MAX = 15          # POWER FOR BLACK
 NUMCOLORS = 16          # Convert images to this many shades of grey.
-
+FEED_SPEED = 300        # Feed Speed
 
 #### DEFAULTS #######################
 #####################################
 
-parser = argparse.ArgumentParser(usage="%(prog)s [-h] [options] svgfile", description="Find Embedded images in an SVG and convert them to Gcode.")
-parser.add_argument('-Y',action='store_true', help="Switch Y axis from default direction")
-parser.add_argument('-X',action='store_true', help="Switch X axis from default direction")
+parser = argparse.ArgumentParser(usage="%(prog)s [-h] [options] svgfile", description="Convert images (Find Embedded images in an SVG) to Gcode.")
+parser.add_argument('-Y',action='store_true', help="Switch TOP to BOTTOM mirror")
+parser.add_argument('-X',action='store_true', help="Switch LEFT to RIGHT mirror")
 parser.add_argument('--svgdpi', type=int, metavar="S", help="DPI of SVG file (Default: "+str(SVG_DPI)+")")
 parser.add_argument('--imagedpi',type=int, metavar="I", help="DPI to use when engraving image (Default: "+str(IMAGE_DPI)+")")
 parser.add_argument('--min',type=float, metavar="MIN", help="Minimum power value (Default "+str(POWER_MIN)+")")
 parser.add_argument('--max',type=float, metavar="MAX", help="Maximum power value (Default "+str(POWER_MAX)+")")
-parser.add_argument('--numcolors',type=int, metavar="N", help="Number of colors to use in images (Default: "+str(NUMCOLORS)+")")
+parser.add_argument('--numcolors',type=int, metavar="N", help="Even Number of colors to use in images (Default: "+str(NUMCOLORS)+")")
+parser.add_argument('--feedspeed',type=int, metavar="F", help="Feed Speed (Default: "+str(FEED_SPEED)+")")
 parser.add_argument('svgfile')
 args = parser.parse_args()
 
@@ -76,7 +77,10 @@ if args.max:
     POWER_MAX = args.max
 
 if args.numcolors: 
-    NUM_COLORS = args.numcolors
+    NUMCOLORS = args.numcolors
+
+if args.feedspeed: 
+    FEED_SPEED = args.feedspeed
 
 SVGFILENAME = args.svgfile
 DPU = SVG_DPI / 25.4                    # Convert SVG_DPI to MM  
@@ -87,12 +91,71 @@ PAGE_WIDTH = 0
 PAGE_HEIGHT = 0
 
 def MOVE_TO (x, y):
+    if(x<0.001):
+        x=0
+    if(y<0.001):
+        y=0
     print MOVE_GCODE.replace("%X",str(x)).replace("%Y",str(y))
 
 def BURN_TO (x, y, val):
+    if(x<0.001):
+        x=0
+    if(y<0.001):
+        y=0
     print BURN_GCODE.replace("%X",str(x)).replace("%Y",str(y)).replace("%S",str(val))
 
-def imageToGcode ( img, x, y, width, height, smin, smax, pixel_size ):
+def imageToGcode ( img, x, y, smin, smax, pixel_size ):
+    # Convert image to gcode 
+    if YHOME == 1:
+        img = img.transpose(Image.FLIP_TOP_BOTTOM)
+    if XHOME == -1:
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+    img = img.convert("L") #grey color
+    width = img.width
+    height = img.height
+    pixels = list(img.getdata())      # 0 black 255 white
+    pixels = [(255-i)//(256//NUMCOLORS) for i in pixels]  # 0 white 255 black //NUMCOLORS
+    # P color pannel
+    #img = img.convert('P',dither=None, palette=Image.ADAPTIVE,colors=NUMCOLORS)
+    pixels = [pixels[i * width:(i + 1) * width] for i in xrange(height)]
+
+    ycur = y
+    xcur = 0
+    xdir = 1
+    POWER_STEP = float((POWER_MAX-POWER_MIN)/float(NUMCOLORS-1))
+    
+    for row in pixels:
+        lastval = 0
+        if xdir < 0:
+            row = reversed(row)
+        col = 0
+        for pixel in row:
+            col += 1
+            #xcur += pixel_size * xdir
+            if xdir > 0:
+                xcur = (col -1) * pixel_size
+            else:
+                xcur = (width - col + 1) * pixel_size
+            sval=0
+            #if pixel>0:
+            sval = pixel * POWER_STEP + POWER_MIN
+            if sval > 0:
+                if lastval <= 0:
+                    MOVE_TO(xcur+x,ycur)
+            if sval != lastval and lastval>0:
+                BURN_TO(xcur+x,ycur,lastval)
+            lastval = sval
+        if sval>0:
+            if xdir>0:
+                xcur += pixel_size
+            else:
+                xcur -= pixel_size
+            BURN_TO(xcur+x,ycur,sval)
+        xdir *= -1
+        ycur += YHOME * pixel_size
+    return None
+
+def old_imageToGcode ( img, x, y, width, height, smin, smax, pixel_size ):
     # Convert image to gcode 
 
     width = int (width / pixel_size)
@@ -169,9 +232,9 @@ def svgToImages ( svgfile ):
                 for k,v in elem.attrib.items():
                   attr = k.rpartition('}')[2].lower()
                   if attr == "width":
-                      PAGE_WIDTH = float(v)
+                      PAGE_WIDTH = float(v[:-2])
                   if attr == "height": 
-                      PAGE_HEIGHT = float(v)
+                      PAGE_HEIGHT = float(v[:-2])
 
             xtrans, ytrans = getTransitions(elem,xtrans,ytrans,1)
 
@@ -212,26 +275,33 @@ def svgToImages ( svgfile ):
 
     return images
 
+if SVGFILENAME[-3:].lower()=="svg":
 
-images = svgToImages(SVGFILENAME)
+    images = svgToImages(SVGFILENAME)
+    print "; PAGE_HEIGHT ",PAGE_HEIGHT
+    for image in images:
+        d = StringIO.StringIO(base64.b64decode(image["d"]))
+        img = Image.open(d)
 
-for image in images:
-    d = StringIO.StringIO(base64.b64decode(image["d"]))
-    img = Image.open(d)
-
-    w = float(image["w"] / DPU)
-    h = float(image["h"] / DPU)
-
-    if XHOME == 1:
+        w = float(image["w"] / DPU)
+        h = float(image["h"] / DPU)
+        w = int (w / PIXEL_SIZE)
+        h = int ( h / PIXEL_SIZE )
+        img = img.resize((w, h), Image.ANTIALIAS)
+        #x = image["x"]
+        #y = image["y"]
         x = float(image["x"] / DPU)
-    else:
-        x = float( (PAGE_WIDTH - (image["x"] + image["w"])) / DPU)
+        y = float( (PAGE_HEIGHT - image["y"] - image["h"]) / DPU)
+        #print "; x ",x, " y ",y
+        print GCODE_HEADER.replace("%F",str(FEED_SPEED))
+        imageToGcode( img, x, y, POWER_MIN, POWER_MAX, PIXEL_SIZE)
+        print GCODE_FOOTER
 
-    if YHOME == 1:
-        y = float(image["y"] / DPU)
-    else:
-        y = float( (PAGE_HEIGHT - (image["y"] + image["h"])) / DPU)
-
-    print GCODE_HEADER
-    imageToGcode( img, x, y, w, h, POWER_MIN, POWER_MAX, PIXEL_SIZE)
+else:
+    img = Image.open(SVGFILENAME)
+    #img = Image.open("/tmp/lan.jpg")
+    #img.show()
+    print GCODE_HEADER.replace("%F",str(FEED_SPEED))
+    imageToGcode( img, 0, 0, POWER_MIN, POWER_MAX, PIXEL_SIZE)
     print GCODE_FOOTER
+
